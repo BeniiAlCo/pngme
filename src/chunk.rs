@@ -1,49 +1,96 @@
 use super::chunk_type::ChunkType;
 use std::fmt::Display;
 
-struct Chunk {}
+#[derive(PartialEq, Eq)]
+struct Chunk {
+    length: u32,
+    chunk_type: ChunkType,
+    chunk_data: Vec<u8>,
+    crc: u32,
+}
 
 impl TryFrom<&[u8]> for Chunk {
-    type Error = ();
+    type Error = &'static str;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        todo!()
+        if value.len() >= 12 {
+            let length = u32::from_be_bytes(value[..4].try_into().unwrap());
+            let chunk_type =
+                ChunkType::try_from(TryInto::<[u8; 4]>::try_into(&value[4..8]).unwrap()).unwrap();
+            let chunk_data = value[8..value.len() - 4].to_vec();
+            let crc = u32::from_be_bytes(value[value.len() - 4..].try_into().unwrap());
+
+            let chunk = Chunk {
+                length,
+                chunk_type,
+                chunk_data: chunk_data.clone(),
+                crc,
+            };
+
+            if chunk == Chunk::new(chunk_type, chunk_data) {
+                Ok(chunk)
+            } else {
+                Err("The checksum for the provided value is invalid.")
+            }
+        } else {
+            Err("Provided value not long enough to contain a chunk.")
+        }
     }
 }
 
 impl Display for Chunk {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        write!(f, "{}", self.chunk_type)
     }
 }
 
 impl Chunk {
     fn new(chunk_type: ChunkType, data: Vec<u8>) -> Chunk {
-        unimplemented!()
+        let crc = crc::Crc::<u32>::new(&crc::CRC_32_ISO_HDLC).checksum(
+            &chunk_type
+                .bytes()
+                .iter()
+                .chain(data.iter())
+                .copied()
+                .collect::<Vec<u8>>(),
+        );
+        Chunk {
+            length: data.len().try_into().expect("length bigger than u32"),
+            chunk_type,
+            chunk_data: data,
+            crc,
+        }
     }
 
     fn length(&self) -> u32 {
-        unimplemented!()
+        self.length
     }
 
     fn chunk_type(&self) -> &ChunkType {
-        unimplemented!()
+        &self.chunk_type
     }
 
     fn data(&self) -> &[u8] {
-        unimplemented!()
+        &self.chunk_data
     }
 
     fn crc(&self) -> u32 {
-        unimplemented!()
+        self.crc
     }
 
     fn data_as_string(&self) -> Result<String, Box<dyn std::error::Error>> {
-        unimplemented!()
+        Ok(std::str::from_utf8(self.data())?.to_string())
     }
 
     fn as_bytes(&self) -> Vec<u8> {
-        unimplemented!()
+        self.length()
+            .to_be_bytes()
+            .iter()
+            .chain(self.chunk_type().bytes().iter())
+            .chain(self.data())
+            .chain(self.crc().to_be_bytes().iter())
+            .copied()
+            .collect()
     }
 }
 
