@@ -3,6 +3,8 @@ implementation of the learning project 'PNGme'
 
 ## The PNG file format
 
+A PNG file is a header (8 bytes) (always the same), followed by a list of chunks.
+
 ### Chunks
 PNG files are (essentially) a list of 'chunks', each containing its own data.
 Each chunk has a type, represented by a 4 character string.
