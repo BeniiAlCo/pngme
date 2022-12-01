@@ -1,7 +1,7 @@
 use clap::{Arg, Command};
-use std::{collections::VecDeque, str::FromStr};
+use std::{path::PathBuf, str::FromStr};
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 enum Action {
     Encode,
     Decode,
@@ -12,9 +12,9 @@ enum Action {
 #[derive(Debug)]
 pub struct Config {
     action: Action,
-    file: String,
+    file: PathBuf,
     chunk_type: Option<String>,
-    chunk_data: Option<String>,
+    chunk_data: Option<Vec<u8>>,
 }
 
 impl Config {
@@ -23,53 +23,77 @@ impl Config {
         .version("0.1")
         .author("BeniiAlCo")
         .about("An implementation of PNGme: a way of encoding and decoding messages hidden in PNG files.")
-        .subcommand_required(true)
         .arg_required_else_help(true)
-        .args_conflicts_with_subcommands(true)
-        .subcommand(Command::new("encode").arg(Arg::new("encode").required(true).num_args(3).value_names(["FILE", "TYPE", "DATA"])))
-        .subcommand(Command::new("decode").arg(Arg::new("decode").required(true).num_args(2).value_names(["FILE", "TYPE"])))
-        .subcommand(Command::new("remove").arg(Arg::new("remove").required(true).num_args(2).value_names(["FILE", "TYPE"])))
-        .subcommand(Command::new("print").arg(Arg::new("print").required(true).num_args(1).value_name("FILE")))
-        
-       
+        .arg(Arg::new("Action")
+            .required(true)
+            .value_parser(["encode", "decode", "remove", "print"])
+            .value_parser(Self::action_to_enum)
+            .value_name("ACTION")
+            .requires_ifs([("encode", "Type"), ("encode", "Data"), ("decode", "Type"), ("remove", "Type")]))
+        .arg(Arg::new("File")
+            .required(true)
+            .value_parser(clap::value_parser!(PathBuf))
+            .value_name("FILE"))
+        .arg(Arg::new("Type")
+            .value_parser(Self::type_is_4_bytes)
+            .value_name("TYPE"))
+        .arg(Arg::new("Data")
+            .value_parser(Self::data_to_u8)
+            .value_name("DATA")) 
         .get_matches();
 
-        if let Some((sub_command, sub_matches)) = matches.subcommand() {
-            let action = match sub_command {
-                "encode" => {Action::Encode}
-                "decode" => {Action::Decode}
-                "remove" => {Action::Remove}
-                "print" => {Action::Print}
-                _ => {unreachable!()}
-            };
+        Ok(Config {
+            action: matches.get_one::<Action>("Action").cloned().unwrap(),
+            file: matches.get_one::<PathBuf>("File").cloned().unwrap(),
+            chunk_type: matches.get_one::<Option<String>>("Type").cloned().unwrap(),
+            chunk_data: matches.get_one::<Option<Vec<u8>>>("Data").cloned().unwrap(),
+        })
+    }
 
-            let mut values: VecDeque<String> = sub_matches.get_many(sub_command).expect("t").cloned().collect();
-
-            let file = values.pop_front().unwrap();
-            let chunk_type = values.pop_front();
-            let chunk_data = values.pop_front();
-
-            Ok(Config {
-                action,
-                file,
-                chunk_type,
-                chunk_data,
-            })
+    fn type_is_4_bytes(s: &str) -> Result<Option<String>, String> {
+        if s.len() == 4 {
+            Ok(Some(s.to_string()))
         } else {
-            panic!()
-            //Err("e");
+            Err("The type provided was not 4 bytes long".to_string())
+        }
+    }
+
+    fn data_to_u8(s: &str) -> Result<Option<Vec<u8>>, String> {
+        if !s.is_empty() {
+            Ok(Some(String::into_bytes(s.to_string())))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn action_to_enum(s: &str) -> Result<Action, String> {
+        match s {
+            "encode" => Ok(Action::Encode),
+            "decode" => Ok(Action::Decode),
+            "remove" => Ok(Action::Remove),
+            "print" => Ok(Action::Print),
+            _ => Err("Something went wrong!".to_string()),
         }
     }
 
     pub fn run(self) -> Result<(), Box<dyn std::error::Error>> {
-        // TODO: Parse all input -- valid path to file; valid type length(4 bytes); data as u8
         // TODO: Read/Write input/output files
+
+        eprintln!("{self:?}");
+        unimplemented!();
+
         match self.action {
             Action::Encode => {
-                let chunk_type = crate::chunk_type::ChunkType::from_str(&self.chunk_type.unwrap()).unwrap();
-                let chunk_data = self.chunk_data.unwrap().into_bytes();
-               println!("{}", crate::png::Png::from_chunks(vec![crate::chunk::Chunk::new(chunk_type, chunk_data)]));
-               Ok(())
+                let chunk_type =
+                    crate::chunk_type::ChunkType::from_str(&self.chunk_type.unwrap()).unwrap();
+                let chunk_data = self.chunk_data.unwrap();
+                println!(
+                    "{}",
+                    crate::png::Png::from_chunks(vec![crate::chunk::Chunk::new(
+                        chunk_type, chunk_data
+                    )])
+                );
+                Ok(())
             }
             Action::Decode => todo!(),
             Action::Remove => todo!(),
