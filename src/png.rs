@@ -3,7 +3,7 @@ use crate::chunk_type::ChunkType;
 use std::error::Error;
 use std::fmt::Display;
 
-struct Png {
+pub struct Png {
     header: [u8; 8],
     chunks: Vec<Chunk>,
 }

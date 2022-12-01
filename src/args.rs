@@ -1,5 +1,5 @@
 use clap::{Arg, Command};
-use std::collections::VecDeque;
+use std::{collections::VecDeque, str::FromStr};
 
 #[derive(Debug)]
 enum Action {
@@ -62,10 +62,14 @@ impl Config {
     }
 
     pub fn run(self) -> Result<(), Box<dyn std::error::Error>> {
-        //eprintln!("{:?}", self);
+        // TODO: Parse all input -- valid path to file; valid type length(4 bytes); data as u8
+        // TODO: Read/Write input/output files
         match self.action {
             Action::Encode => {
-                
+                let chunk_type = crate::chunk_type::ChunkType::from_str(&self.chunk_type.unwrap()).unwrap();
+                let chunk_data = self.chunk_data.unwrap().into_bytes();
+               println!("{}", crate::png::Png::from_chunks(vec![crate::chunk::Chunk::new(chunk_type, chunk_data)]));
+               Ok(())
             }
             Action::Decode => todo!(),
             Action::Remove => todo!(),
