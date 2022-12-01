@@ -4,9 +4,9 @@ mod chunk_type;
 mod commands;
 mod png;
 
-pub type Error = Box<dyn std::error::Error>;
-pub type Result<T> = std::result::Result<T, Error>;
-
-fn main() -> Result<()> {
-    todo!()
+fn main() {
+    if let Err(err) = args::Config::new().and_then(args::Config::run) {
+        eprintln!("{err}");
+        std::process::exit(1);
+    }
 }
