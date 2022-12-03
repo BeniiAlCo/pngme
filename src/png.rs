@@ -41,7 +41,7 @@ impl Display for Png {
         let s = self
             .as_bytes()
             .iter()
-            .map(|c| c.to_string())
+            .map(|c| format!("{} ", c))
             .collect::<String>();
         write!(f, "{}", s)
     }
