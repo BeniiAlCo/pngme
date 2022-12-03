@@ -96,15 +96,11 @@ impl Config {
     }
 
     pub fn run(self) -> Result<(), Box<dyn std::error::Error>> {
-        // TODO: Read/Write input/output files
-
-        //eprintln!("{self:?}");
         use crate::chunk::Chunk;
         use crate::chunk_type::ChunkType;
         use crate::png::Png;
 
         let mut buffer = Vec::new();
-        //let mut buf = File::create(&self.file).unwrap();
         if self.action != Action::Encode {
             match Self::open(&self.file) {
                 Err(err) => {
@@ -137,8 +133,19 @@ impl Config {
                 }
                 Ok(())
             }
-            Action::Remove => todo!(),
-            Action::Print => todo!(),
+            Action::Remove => {
+                let mut buf = File::create(&self.file).unwrap();
+                let chunk_type = &self.chunk_type.unwrap();
+                let mut png: Png = TryFrom::try_from(buffer.as_ref()).unwrap();
+                png.remove_chunk(chunk_type).ok();
+                buf.write_all(&png.as_bytes())?;
+                Ok(())
+            }
+            Action::Print => {
+                let png: Png = TryFrom::try_from(buffer.as_ref()).unwrap();
+                println!("{}", png);
+                Ok(())
+            }
         }
     }
 
